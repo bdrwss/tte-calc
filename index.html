@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTE 心超速查 · 临床计算器专业版 (含ASE 2025/ESC 2025)</title>
+  <meta name="description" content="经胸超声心动图(TTE)全套真实在线医学计算器：体表面积BSA、LVOT心排量、Qp/Qs、主动脉瓣狭窄AVA、二尖瓣口面积MVA、PISA反流定量、左室质量LVMi、LVEF、ASE 2025舒张功能辅助及中文心超报告模板自动生成。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c93b2b'/%3E%3Cpath d='M4 17h6l3-8 5 15 3-7h7' fill='none' stroke='white' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 顶部主导航栏 -->
+  <header class="header-wrap">
+    <div class="header-inner">
+      <a class="brand-box" href="#">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h7"/></svg>
+        </div>
+        <div class="brand-titles">
+          <h1>TTE <span>心超临床计算器</span></h1>
+          <p>全功能即时运算套件 · 依据 ASE 2025 / ESC 2025 标准</p>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="calcSearch" placeholder="搜索计算项目，如 AVA、PISA、EF..." aria-label="搜索项目">
+        </div>
+        <button class="btn" id="themeToggle" type="button" aria-label="切换明暗主题">🌙 深色模式</button>
+        <button class="btn btn-primary" id="clearCalc" type="button">清空全部输入</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 预设病例与跨卡片联动状态横幅 -->
+  <div class="banner">
+    <div class="banner-card">
+      <div class="preset-group">
+        <span class="preset-title">💡 快速填入典型临床案例：</span>
+        <button class="pill-btn" data-preset="normal">健康成年人 (正常参考)</button>
+        <button class="pill-btn" data-preset="severe_as">重度主动脉瓣狭窄 (Severe AS)</button>
+        <button class="pill-btn" data-preset="mr_pisa">二尖瓣重度反流 (PISA定量)</button>
+        <button class="pill-btn" data-preset="ph_rv">肺动脉高压与右室负荷 (PH & RV)</button>
+      </div>
+      <div class="banner-stats">
+        <div class="stat-badge">全域联动 BSA：<b id="badge-bsa">未计算</b></div>
+        <div class="stat-badge">LVOT 每搏量：<b id="badge-sv">未计算</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 计算器主网格区域 -->
+  <main class="main-container" id="calcApp">
+
+    <!-- 一、基础体征与每搏输出量 -->
+    <div class="section-head">
+      <h2>基础体征与前向血流动力学</h2>
+      <span>数据自动跨卡片共享（BSA 与 LVOT SV 会自动注入下游所有指数计算）</span>
+    </div>
+
+    <div class="calc-grid">
+      <!-- 1. 体表面积与基础信息 -->
+      <section class="calc-card" id="card-basic">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>体表面积与基础信息 (BSA / BMI)</h3>
+              <div class="card-formula">BSA = √(身高 × 体重 / 3600)</div>
+            </div>
+            <span class="badge-tag highlight">核心联动源</span>
+          </div>
+          <div class="fields-grid field-3col">
+            <div class="field-item">
+              <label for="c-height">身高 <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-height" type="number" step="any" min="30" max="250" placeholder="如 170"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-weight">体重 <span class="unit">kg</span></label>
+              <div class="input-wrap"><input id="c-weight" type="number" step="any" min="1" max="300" placeholder="如 65"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-hr">心率 <span class="unit">次/min</span></label>
+              <div class="input-wrap"><input id="c-hr" type="number" step="any" min="20" max="250" placeholder="如 75"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-basic" aria-live="polite">等待输入身高与体重</div>
+          <div class="card-footer">采用 Mosteller 公式。算得 BSA 将自动提供给心排量指数、心房容积指数、左室质量指数等。</div>
+        </div>
+      </section>
+
+      <!-- 2. LVOT · 每搏量与心排量 -->
+      <section class="calc-card" id="card-flow">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>LVOT · 每搏量 (SV) 与心排量 (CO)</h3>
+              <div class="card-formula">SV = π×d²/4 × VTI ｜ CO = SV × HR / 1000</div>
+            </div>
+            <span class="badge-tag highlight">前向血流基准</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-ld">LVOT 内径 <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-ld" type="number" step="any" min="0.5" max="5.0" placeholder="如 2.0"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-lvti">LVOT 速度时间积分 (VTI) <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-lvti" type="number" step="any" min="1" max="80" placeholder="如 20"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-flow" aria-live="polite">等待输入 LVOT 内径与 VTI</div>
+          <div class="card-footer">胸骨旁长轴测量 LVOT 收缩中期内径。低流量判定参考：SVi &lt; 35 mL/m²。</div>
+        </div>
+      </section>
+
+      <!-- 3. Qp/Qs 肺体循环血流比 -->
+      <section class="calc-card" id="card-shunt">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Qp/Qs · 肺体循环血流比 (分流评估)</h3>
+              <div class="card-formula">Qp/Qs = (RVOT CSA × RVOT VTI) / LVOT SV</div>
+            </div>
+            <span class="badge-tag">先心病/缺损</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-rd">RVOT 直径 <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-rd" type="number" step="any" min="0.5" max="6.0" placeholder="如 2.2"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-rvti">RVOT VTI <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-rvti" type="number" step="any" min="1" max="100" placeholder="如 18"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-shunt" aria-live="polite">等待输入 RVOT 数据 (自动引用上方 LVOT SV)</div>
+          <div class="card-footer">Qp/Qs &gt; 1.5 提示血流动力学显著的左向右分流。若合并明显瓣膜反流可能存在误差。</div>
+        </div>
+      </section>
+
+      <!-- 4. 简便 / 修正伯努利方程 -->
+      <section class="calc-card" id="card-bernoulli">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>伯努利方程跨狭窄压差 (ΔP)</h3>
+              <div class="card-formula">ΔP = 4 × (V₂² - V₁²) mmHg</div>
+            </div>
+            <span class="badge-tag">压差定量</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-v2">远端狭窄峰速 V₂ <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-v2" type="number" step="any" min="0.1" max="10" placeholder="如 4.2"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-v1">近端速度 V₁ (可选) <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-v1" type="number" step="any" min="0" max="8" placeholder="缺省按 0 简便法"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-bernoulli" aria-live="polite">等待输入狭窄远端峰速 V₂</div>
+          <div class="card-footer">当近端速度 V₁ &gt; 1.5 m/s 时需采用修正公式 4×(V₂² - V₁²)，以避免高估跨瓣压差。</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 二、瓣膜病变与血流动力学定量 -->
+    <div class="section-head">
+      <h2>瓣膜病变与反流 / 狭窄定量</h2>
+      <span>主动脉瓣 (AVA)、二尖瓣 (MVA)、PISA 反流定量与容积法</span>
+    </div>
+
+    <div class="calc-grid">
+      <!-- 5. 主动脉瓣口面积 AVA -->
+      <section class="calc-card" id="card-ava">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>主动脉瓣口面积 (AVA) 与狭窄分级</h3>
+              <div class="card-formula">AVA = LVOT SV / AV VTI ｜ DVI = LVOT VTI / AV VTI</div>
+            </div>
+            <span class="badge-tag">连续性方程</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-avti">主动脉瓣 CW VTI <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-avti" type="number" step="any" min="1" max="300" placeholder="如 75"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-avmax">AV 峰值流速 Vmax <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-avmax" type="number" step="any" min="0.5" max="10" placeholder="如 4.2"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-lvmax">LVOT 峰速 Vmax (可选) <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-lvmax" type="number" step="any" min="0.2" max="6" placeholder="如 1.0"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-stj">STJ 窦管交界径 (可选) <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-stj" type="number" step="any" min="1.0" max="6" placeholder="计算能量损失 ELI"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-ava" aria-live="polite">等待输入主动脉瓣 VTI (自动复用上方 LVOT 搏出量)</div>
+          <div class="card-footer">重度 AS 诊断标准：AVA &lt; 1.0 cm²，AVAi &lt; 0.6 cm²/m²，DVI &lt; 0.25，峰速 ≥ 4.0 m/s。</div>
+        </div>
+      </section>
+
+      <!-- 6. 二尖瓣口面积 MVA -->
+      <section class="calc-card" id="card-mva">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>二尖瓣口面积 (MVA) · PHT 与连续方程</h3>
+              <div class="card-formula">MVA = 220 / PHT (ms) ｜ 连续方程法 MVA = SV / MV VTI</div>
+            </div>
+            <span class="badge-tag">MS 狭窄</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-pht">压力降半时间 (PHT) <span class="unit">ms</span></label>
+              <div class="input-wrap"><input id="c-pht" type="number" step="any" min="10" max="800" placeholder="如 220"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-mvti">二尖瓣前向流入 VTI (可选) <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-mvti" type="number" step="any" min="1" max="200" placeholder="连续方程法使用"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-mva" aria-live="polite">等待输入 PHT</div>
+          <div class="card-footer">风湿性 MS：MVA ≤ 1.5 cm² 为显著狭窄，≤ 1.0 cm² 为非常严重狭窄。二尖瓣成形术后或人工瓣不宜使用 PHT。</div>
+        </div>
+      </section>
+
+      <!-- 7. PISA 近端等速表面积法 -->
+      <section class="calc-card" id="card-pisa">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>PISA · 有效反流口面积 (EROA) 与反流量</h3>
+              <div class="card-formula">Flow = 2π·r²·Va ｜ EROA = Flow / (Vmax×100) ｜ RVol = EROA × VTI</div>
+            </div>
+            <span class="badge-tag highlight">反流金标准定量</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-radius">PISA 半径 (r) <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-radius" type="number" step="any" min="0.1" max="3.0" placeholder="如 0.9"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-alias">基线混叠速度 (Va) <span class="unit">cm/s</span></label>
+              <div class="input-wrap"><input id="c-alias" type="number" step="any" min="10" max="80" placeholder="如 40"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-regv">CW 反流峰值流速 <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-regv" type="number" step="any" min="1" max="10" placeholder="如 5.0"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-regvti">CW 反流束 VTI (可选) <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-regvti" type="number" step="any" min="1" max="300" placeholder="计算 RVol 反流容积"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-pisa" aria-live="polite">等待输入 PISA 半径、混叠速度及峰速</div>
+          <div class="card-footer">原发 MR 重度：EROA ≥ 0.40 cm²，RVol ≥ 60 mL；继发 MR：EROA ≥ 0.30 cm²，RVol ≥ 45 mL。</div>
+        </div>
+      </section>
+
+      <!-- 8. 容积法反流量与反流分数 -->
+      <section class="calc-card" id="card-volume">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>容积法反流量 / 反流分数 (RF)</h3>
+              <div class="card-formula">MSV = π·d²/4 × VTI ｜ RVol = |MSV - SV| ｜ RF = RVol / 搏出量</div>
+            </div>
+            <span class="badge-tag">容积差值法</span>
+          </div>
+          <div class="option-row">
+            <label for="lesion">病变类型：
+              <select id="lesion">
+                <option value="mr">孤立性二尖瓣反流 (MR)</option>
+                <option value="ar">孤立性主动脉瓣反流 (AR)</option>
+              </select>
+            </label>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-md">二尖瓣环直径 <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-md" type="number" step="any" min="1.0" max="6.0" placeholder="如 3.2"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-mavti">二尖瓣环流入 PW VTI <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-mavti" type="number" step="any" min="1" max="150" placeholder="如 18"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-volume" aria-live="polite">等待输入二尖瓣环数据 (引用上方 LVOT SV)</div>
+          <div class="card-footer">重度反流判定：反流分数 RF ≥ 50%，反流容积 RVol ≥ 60 mL。仅适用于孤立性反流且无心内分流者。</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 三、左心室几何构型与收缩功能 -->
+    <div class="section-head">
+      <h2>左心室形态结构与收缩功能</h2>
+      <span>Devereux 左室质量、几何重构分型、LVEF 射血分数与 dP/dt</span>
+    </div>
+
+    <div class="calc-grid">
+      <!-- 9. 左室质量与几何构型 -->
+      <section class="calc-card" id="card-mass">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>左室质量 (LV Mass)、相对室壁厚度 (RWT)</h3>
+              <div class="card-formula">Devereux 公式 ｜ RWT = 2×PWd / LVIDd ｜ 联动 BSA 计算 LVMi</div>
+            </div>
+            <span class="badge-tag">构型分型</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-ivs">室间隔舒张末厚度 (IVSd) <span class="unit">mm</span></label>
+              <div class="input-wrap"><input id="c-ivs" type="number" step="any" min="2" max="40" placeholder="如 10"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-lvidd">左室舒张末内径 (LVIDd) <span class="unit">mm</span></label>
+              <div class="input-wrap"><input id="c-lvidd" type="number" step="any" min="15" max="100" placeholder="如 48"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-pw">左室后壁舒张末 (PWd) <span class="unit">mm</span></label>
+              <div class="input-wrap"><input id="c-pw" type="number" step="any" min="2" max="40" placeholder="如 10"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-lvids">左室收缩末内径 (LVIDs, 可选) <span class="unit">mm</span></label>
+              <div class="input-wrap"><input id="c-lvids" type="number" step="any" min="10" max="90" placeholder="计算短轴缩短率 FS"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-mass" aria-live="polite">等待输入 IVSd、LVIDd 与 PWd</div>
+          <div class="card-footer">按 ASE 标准：RWT &gt; 0.42 为相对室壁增厚；LVMi 正常上限男 115 g/m²、女 95 g/m²。判定正常/向心性重构/向心性肥厚/离心性肥厚。</div>
+        </div>
+      </section>
+
+      <!-- 10. 左室射血分数 LVEF -->
+      <section class="calc-card" id="card-ef">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>左室射血分数 (LVEF) 与容积指数</h3>
+              <div class="card-formula">EF = (EDV - ESV) / EDV × 100% ｜ EDVi = EDV / BSA</div>
+            </div>
+            <span class="badge-tag highlight">心衰分型核心</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-edv">左室舒张末容积 (EDV) <span class="unit">mL</span></label>
+              <div class="input-wrap"><input id="c-edv" type="number" step="any" min="10" max="600" placeholder="双平面 Simpson 如 120"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-esv">左室收缩末容积 (ESV) <span class="unit">mL</span></label>
+              <div class="input-wrap"><input id="c-esv" type="number" step="any" min="5" max="500" placeholder="如 45"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-ef" aria-live="polite">等待输入 EDV 与 ESV</div>
+          <div class="card-footer">心衰分类：LVEF ≥ 50% (HFpEF)；41–49% (HFmrEF)；≤ 40% (HFrEF)。</div>
+        </div>
+      </section>
+
+      <!-- 11. MR 频谱 dP/dt -->
+      <section class="calc-card" id="card-dpdt">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>二尖瓣反流频谱测定收缩期 dP/dt</h3>
+              <div class="card-formula">dP/dt = 32000 / Δt (ms) ｜ MR 速度 1 至 3 m/s 升压时间</div>
+            </div>
+            <span class="badge-tag">左室自主收缩力</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item" style="grid-column: span 2;">
+              <label for="c-dt">MR 速度从 1.0 m/s 升至 3.0 m/s 所需时程 (Δt) <span class="unit">ms</span></label>
+              <div class="input-wrap"><input id="c-dt" type="number" step="any" min="5" max="200" placeholder="如 25"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-dpdt" aria-live="polite">等待输入 MR 1→3 m/s 时程 Δt</div>
+          <div class="card-footer">参考界值：&gt; 1200 mmHg/s 提示收缩力正常；1000–1200 为临界边缘；&lt; 1000 mmHg/s 提示左室收缩功能明显减退。</div>
+        </div>
+      </section>
+
+      <!-- 12. 心房容积指数 -->
+      <section class="calc-card" id="card-atrial">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>心房容积指数 (LAVI 与 RAVI)</h3>
+              <div class="card-formula">LAVI = 左房容积 / BSA ｜ RAVI = 右房容积 / BSA</div>
+            </div>
+            <span class="badge-tag">心房负荷定量</span>
+          </div>
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-lav">左房容积 (LAV) <span class="unit">mL</span></label>
+              <div class="input-wrap"><input id="c-lav" type="number" step="any" min="5" max="300" placeholder="双平面法 如 45"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-rav">右房容积 (RAV) <span class="unit">mL</span></label>
+              <div class="input-wrap"><input id="c-rav" type="number" step="any" min="5" max="300" placeholder="盘叠法 如 35"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-atrial" aria-live="polite">等待输入心房容积 (自动引用上方 BSA)</div>
+          <div class="card-footer">左房容积指数：正常 16–34 mL/m²；轻度增大 35–41；中度增大 42–48；重度 &gt; 48 mL/m²。右房正常 &lt; 30 mL/m²。</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 四、舒张功能与肺高压评估 -->
+    <div class="section-head">
+      <h2>舒张功能 (ASE 2025) 与肺循环压力</h2>
+      <span>最新 ASE 2025 窦性心律分级决策树、IVC 估测 RAP/PASP 及 PH 超声概率</span>
+    </div>
+
+    <div class="calc-grid">
+      <!-- 13. 舒张功能 ASE 2025 -->
+      <section class="calc-card" id="card-dias" style="grid-column: span 2;">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>左室舒张功能与充盈压评估 (ASE 2025 最新分级流程)</h3>
+              <div class="card-formula">首轮三项：e'、平均 E/e' (≥14)、肺动脉压 ｜ 补充：LASr (≤18%)、LAVI (&gt;34)、PV S/D (≤0.67)、IVRT</div>
+            </div>
+            <span class="badge-tag highlight">ASE 2025 Figure 3</span>
+          </div>
+
+          <div class="option-row">
+            <label class="check">
+              <input type="checkbox" id="diasOK" class="checkbox-custom" checked>
+              已核对符合普通窦性心律算法适用条件 (排除房颤、显著二尖瓣狭窄/钙化、人工瓣及左心室辅助装置)
+            </label>
+          </div>
+
+          <div class="fields-grid field-3col">
+            <div class="field-item">
+              <label for="c-e">二尖瓣血流 E 峰 <span class="unit">cm/s</span></label>
+              <div class="input-wrap"><input id="c-e" type="number" step="any" min="10" max="300" placeholder="如 80"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-a">二尖瓣血流 A 峰 <span class="unit">cm/s</span></label>
+              <div class="input-wrap"><input id="c-a" type="number" step="any" min="10" max="300" placeholder="如 60"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-es">室间隔组织多普勒 e′ <span class="unit">cm/s</span></label>
+              <div class="input-wrap"><input id="c-es" type="number" step="any" min="1" max="40" placeholder="异常 ≤6 如 8"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-el">侧壁组织多普勒 e′ <span class="unit">cm/s</span></label>
+              <div class="input-wrap"><input id="c-el" type="number" step="any" min="1" max="40" placeholder="异常 ≤7 如 10"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-dpasp">估测 PASP <span class="unit">mmHg</span></label>
+              <div class="input-wrap"><input id="c-dpasp" type="number" step="any" min="5" max="150" placeholder="异常 ≥35 如 28"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-dtr">TR 峰速 (若PASP未定) <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-dtr" type="number" step="any" min="0.5" max="8" placeholder="异常 ≥2.8 如 2.2"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-lavi">左房容积指数 (LAVI) <span class="unit">mL/m²</span></label>
+              <div class="input-wrap"><input id="c-lavi" type="number" step="any" min="5" max="150" placeholder="补充指标 异常 >34"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-lasr">左房存储应变 (LASr) <span class="unit">%</span></label>
+              <div class="input-wrap"><input id="c-lasr" type="number" step="any" min="1" max="80" placeholder="补充指标 异常 ≤18"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-sd">肺静脉血流 S/D 比值</label>
+              <div class="input-wrap"><input id="c-sd" type="number" step="any" min="0.1" max="5" placeholder="补充指标 异常 ≤0.67"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-dias" aria-live="polite">等待输入舒张功能参数</div>
+          <div class="card-footer">全面遵循 ASE 2025 指南决策逻辑：0项异常＝正常；3项异常＝充盈压升高(E/A≥2为Ⅲ级，&lt;2为Ⅱ级)；仅e'减退且E/A≤0.8＝Ⅰ级；不确定时考察 LASr、LAVI、PV S/D 等补充指标。</div>
+        </div>
+      </section>
+
+      <!-- 14. 右心压力与 PH 概率 -->
+      <section class="calc-card" id="card-pressure">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>右心压力估测与 PH 超声概率 (ESC/ERS 2022)</h3>
+              <div class="card-formula">PASP = 4·TRV² + RAP ｜ TAPSE/PASP 偶联指数 ｜ PADP ≈ 4·PR² + RAP</div>
+            </div>
+            <span class="badge-tag">肺血管压力</span>
+          </div>
+
+          <div class="option-row">
+            <label class="check">
+              <input type="checkbox" id="vent" class="checkbox-custom">
+              患者处于机械通气状态 (不适用自主呼吸 IVC 评分)
+            </label>
+            <label for="collapse">快速吸气塌陷：
+              <select id="collapse">
+                <option value="">未评估</option>
+                <option value="yes">&gt; 50% (良好)</option>
+                <option value="no">≤ 50% (减弱)</option>
+              </select>
+            </label>
+            <label for="phsigns">两类以上 PH 征象：
+              <select id="phsigns">
+                <option value="">未评估</option>
+                <option value="no">无支持征象</option>
+                <option value="yes">有支持征象 (A/B/C)</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="fields-grid">
+            <div class="field-item">
+              <label for="c-tr">三尖瓣反流峰速 (TR Vmax) <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-tr" type="number" step="any" min="0.5" max="8" placeholder="如 2.8"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-ivc">下腔静脉 (IVC) 内径 <span class="unit">mm</span></label>
+              <div class="input-wrap"><input id="c-ivc" type="number" step="any" min="5" max="50" placeholder="如 18"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-tapse">TAPSE 瓣环位移 <span class="unit">mm</span></label>
+              <div class="input-wrap"><input id="c-tapse" type="number" step="any" min="5" max="40" placeholder="如 20"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-act">RVOT 加速时间 (AcT) <span class="unit">ms</span></label>
+              <div class="input-wrap"><input id="c-act" type="number" step="any" min="20" max="250" placeholder="异常 &lt;105 如 120"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-prend">肺动脉瓣反流 PR 舒张末速度 <span class="unit">m/s</span></label>
+              <div class="input-wrap"><input id="c-prend" type="number" step="any" min="0.2" max="5" placeholder="估测 PADP"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-rv_rvti">RVOT VTI (可选) <span class="unit">cm</span></label>
+              <div class="input-wrap"><input id="c-rv_rvti" type="number" step="any" min="1" max="100" placeholder="计算经验肺血管阻力 PVR"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-pressure" aria-live="polite">等待输入 TR 峰速与 IVC 参数</div>
+          <div class="card-footer">IVC 评分：≤21mm 且塌陷&gt;50% RAP≈3；&gt;21mm 且塌陷≤50% RAP≈15；其余RAP≈8。TAPSE/PASP &lt; 0.55 提示右室肺动脉偶联异常。</div>
+        </div>
+      </section>
+
+      <!-- 15. 右室 FAC 与收缩功能 -->
+      <section class="calc-card" id="card-rvcalc">
+        <div>
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>右室 FAC 面积变化分数与收缩功能</h3>
+              <div class="card-formula">FAC = (EDA - ESA) / EDA × 100% ｜ 正常边界 &gt; 35%</div>
+            </div>
+            <span class="badge-tag">右心定量</span>
+          </div>
+          <div class="fields-grid field-3col">
+            <div class="field-item">
+              <label for="c-eda">RV 舒张末面积 (EDA) <span class="unit">cm²</span></label>
+              <div class="input-wrap"><input id="c-eda" type="number" step="any" min="5" max="80" placeholder="如 20"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-esa">RV 收缩末面积 (ESA) <span class="unit">cm²</span></label>
+              <div class="input-wrap"><input id="c-esa" type="number" step="any" min="2" max="60" placeholder="如 11"></div>
+            </div>
+            <div class="field-item">
+              <label for="c-rvs">三尖瓣环收缩期 S′ <span class="unit">cm/s</span></label>
+              <div class="input-wrap"><input id="c-rvs" type="number" step="any" min="2" max="40" placeholder="正常 &gt;9.5 如 12"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="calc-output" id="out-rvcalc" aria-live="polite">等待输入 RV 面积或 S′ 速度</div>
+          <div class="card-footer">右室聚焦四腔心切面测量。ASE 2025 最新界值：FAC &gt; 35% 为正常，29–35% 轻度减低，≤ 22% 重度减低。</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 五、规范中文超声心动图报告实时联动生成器 -->
+    <section class="report-section" id="reportApp">
+      <div class="report-header">
+        <div>
+          <h2>中文超声心动图报告智能生成器</h2>
+          <p>上方所有计算模块数据已实时联动填入下方模板；支持手动修改、一键复制到临床电子病历。</p>
+        </div>
+        <div class="report-btn-group">
+          <button class="btn" id="refreshReport" type="button">🔄 重新同步计算数据</button>
+          <button class="btn btn-primary" id="copyReport" type="button">📋 一键复制报告文本</button>
+        </div>
+      </div>
+
+      <textarea id="reportText" class="report-editor" aria-label="生成的超声报告文本" placeholder="正在生成报告..."></textarea>
+
+      <div class="report-actions">
+        <span class="status-text" id="copyStatus" role="status"></span>
+        <span style="font-size: 12.5px; color: var(--text-muted);">规范文本格式已适配各大医院 PACS 及超声工作站输入</span>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 浮动通知 Toast -->
+  <div class="toast-msg" id="toast" role="alert"></div>
+
+  <!-- 页脚 -->
+  <footer>
+    <p><b>TTE 心超速查 · 独立临床计算套件</b> ｜ 依据所附原站逻辑与最新医学指南重新高精度构建</p>
+    <p>参考规范：ASE 2025 左室舒张功能 (Fig 3) · ASE 2025 成人右心与肺高压 (Table 1) · ESC/EACTS 2025 瓣膜病管理 · ESC/ERS 2022 肺高压</p>
+    <p>医学教育与辅助计算使用；实际临床决策请结合患者整体病史、多声窗测量与临床医生综合判断。</p>
+  </footer>
+
+  <script src="calc.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>TTE 计算器自动化 E2E 测试套件</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #0f172a; color: #f8fafc; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; font-weight: bold; }
+    .summary { margin-top: 20px; padding: 15px; border-radius: 8px; font-size: 16px; }
+    .summary.ok { background: #14532d; }
+    .summary.err { background: #7f1d1d; }
+    iframe { width: 1200px; height: 800px; border: 1px solid #334155; margin-top: 20px; background: white; }
+  </style>
+</head>
+<body>
+  <h1>TTE 心超速查 · 自动化 E2E 交互功能测试</h1>
+  <div id="results">正在加载主应用并执行全套测试...</div>
+  <iframe id="appFrame" src="index.html"></iframe>
+
+  <script src="e2e-test.js"></script>
+</body>
+</html>

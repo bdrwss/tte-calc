@@ -1,0 +1,6 @@
+# Logs and test artifacts
+*.log
+.system_generated/
+node_modules/
+.DS_Store
+Thumbs.db
